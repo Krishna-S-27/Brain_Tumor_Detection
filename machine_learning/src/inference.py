@@ -1,56 +1,68 @@
 # File: machine_learning/src/inference.py
 
 import os
-import requests
 import numpy as np
 import joblib
 import cv2
+import requests
 from tensorflow.keras.models import load_model
 from tensorflow.keras.applications.vgg16 import preprocess_input
 from tensorflow.keras.applications import VGG16
 from tensorflow.keras.models import Model
-from machine_learning.src.config import CLASSES, MODEL_DIR
+from machine_learning.src.config import CLASSES
 
-# === DROPBOX DIRECT DOWNLOAD LINKS ===
+# Dropbox model URLs
 CNN_MODEL_URL = "https://www.dropbox.com/scl/fi/hycicdjgwyogidwpkmhin/cnn_model.h5?rlkey=6siy5ttso5cxzqb7xwetk8ve5&st=wvpmpeli&dl=1"
 SVM_MODEL_URL = "https://www.dropbox.com/scl/fi/89ery357pf19i97tjl3c9/svm_model.pkl?rlkey=m64njjqrarqj7s1lp1wld9m9u&st=9n8m0ry1&dl=1"
 RF_MODEL_URL  = "https://www.dropbox.com/scl/fi/rtvw1d9s8v432rip3v4dc/rf_model.pkl?rlkey=bt79zzljcvidel7ns7sxffngr&st=eqfqaye6&dl=1"
 
-# Ensure model directory exists
+MODEL_DIR = "downloaded_models"
 os.makedirs(MODEL_DIR, exist_ok=True)
 
-def download_if_missing(url, path):
-    if not os.path.exists(path):
-        print(f"[INFO] Downloading model: {os.path.basename(path)}")
-        try:
-            r = requests.get(url)
-            r.raise_for_status()
-            with open(path, "wb") as f:
-                f.write(r.content)
-            print(f"[INFO] Successfully downloaded {os.path.basename(path)}")
-        except Exception as e:
-            raise RuntimeError(f"Failed to download {os.path.basename(path)}: {e}")
+# Lazy-loaded models
+cnn_model = None
+svm_model = None
+rf_model = None
+feature_model = None
 
-# === Download models if not already present ===
-cnn_path = os.path.join(MODEL_DIR, "cnn_model.h5")
-svm_path = os.path.join(MODEL_DIR, "svm_model.pkl")
-rf_path  = os.path.join(MODEL_DIR, "rf_model.pkl")
+def download_if_needed(url, filename):
+    local_path = os.path.join(MODEL_DIR, filename)
+    if not os.path.exists(local_path):
+        print(f"🔽 Downloading {filename}...")
+        r = requests.get(url)
+        with open(local_path, "wb") as f:
+            f.write(r.content)
+    return local_path
 
-download_if_missing(CNN_MODEL_URL, cnn_path)
-download_if_missing(SVM_MODEL_URL, svm_path)
-download_if_missing(RF_MODEL_URL, rf_path)
+def load_cnn():
+    global cnn_model
+    if cnn_model is None:
+        path = download_if_needed(CNN_MODEL_URL, "cnn_model.h5")
+        cnn_model = load_model(path)
+    return cnn_model
 
-# === Load models ===
-cnn_model = load_model(cnn_path)
-svm_model = joblib.load(svm_path)
-rf_model = joblib.load(rf_path)
+def load_svm():
+    global svm_model
+    if svm_model is None:
+        path = download_if_needed(SVM_MODEL_URL, "svm_model.pkl")
+        svm_model = joblib.load(path)
+    return svm_model
 
-# === VGG16 for feature extraction ===
-vgg_model = VGG16(weights='imagenet', include_top=False, input_shape=(224, 224, 3))
-feature_model = Model(inputs=vgg_model.input, outputs=vgg_model.output)
+def load_rf():
+    global rf_model
+    if rf_model is None:
+        path = download_if_needed(RF_MODEL_URL, "rf_model.pkl")
+        rf_model = joblib.load(path)
+    return rf_model
+
+def load_feature_model():
+    global feature_model
+    if feature_model is None:
+        vgg = VGG16(weights='imagenet', include_top=False, input_shape=(224, 224, 3))
+        feature_model = Model(inputs=vgg.input, outputs=vgg.output)
+    return feature_model
 
 def preprocess_image(image_path):
-    """Loads and preprocesses the image from path."""
     img = cv2.imread(image_path)
     img = cv2.resize(img, (224, 224))
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
@@ -58,30 +70,29 @@ def preprocess_image(image_path):
     return img
 
 def extract_features(img_array):
-    """Converts image to features using VGG16."""
+    model = load_feature_model()
     img_array = np.expand_dims(img_array, axis=0)
-    img_preprocessed = preprocess_input(img_array)
-    features = feature_model.predict(img_preprocessed)
+    preprocessed = preprocess_input(img_array)
+    features = model.predict(preprocessed)
     return features.reshape(1, -1)
 
 def predict_class(image_path, model_type='cnn'):
-    """Predict tumor class using the selected model."""
     img_array = preprocess_image(image_path)
 
     if model_type == 'cnn':
-        input_tensor = np.expand_dims(img_array, axis=0)
-        preds = cnn_model.predict(input_tensor)
+        model = load_cnn()
+        preds = model.predict(np.expand_dims(img_array, axis=0))
         return CLASSES[np.argmax(preds)]
 
     elif model_type == 'svm':
+        model = load_svm()
         features = extract_features(img_array)
-        preds = svm_model.predict(features)
-        return CLASSES[preds[0]]
+        return CLASSES[model.predict(features)[0]]
 
     elif model_type == 'rf':
+        model = load_rf()
         features = extract_features(img_array)
-        preds = rf_model.predict(features)
-        return CLASSES[preds[0]]
+        return CLASSES[model.predict(features)[0]]
 
     else:
         raise ValueError("Invalid model type. Choose from 'cnn', 'svm', 'rf'")
