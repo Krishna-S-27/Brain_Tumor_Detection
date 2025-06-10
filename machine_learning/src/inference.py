@@ -1,5 +1,7 @@
 # File: machine_learning/src/inference.py
 
+import os
+import requests
 import numpy as np
 import joblib
 import cv2
@@ -9,12 +11,41 @@ from tensorflow.keras.applications import VGG16
 from tensorflow.keras.models import Model
 from machine_learning.src.config import CLASSES, MODEL_DIR
 
-# Load models once
-cnn_model = load_model(f"{MODEL_DIR}/cnn_model.h5")
-svm_model = joblib.load(f"{MODEL_DIR}/svm_model.pkl")
-rf_model = joblib.load(f"{MODEL_DIR}/rf_model.pkl")
+# === DROPBOX DIRECT DOWNLOAD LINKS ===
+CNN_MODEL_URL = "https://www.dropbox.com/scl/fi/hycicdjgwyogidwpkmhin/cnn_model.h5?rlkey=6siy5ttso5cxzqb7xwetk8ve5&st=wvpmpeli&dl=1"
+SVM_MODEL_URL = "https://www.dropbox.com/scl/fi/89ery357pf19i97tjl3c9/svm_model.pkl?rlkey=m64njjqrarqj7s1lp1wld9m9u&st=9n8m0ry1&dl=1"
+RF_MODEL_URL  = "https://www.dropbox.com/scl/fi/rtvw1d9s8v432rip3v4dc/rf_model.pkl?rlkey=bt79zzljcvidel7ns7sxffngr&st=eqfqaye6&dl=1"
 
-# Load VGG16 for feature extraction
+# Ensure model directory exists
+os.makedirs(MODEL_DIR, exist_ok=True)
+
+def download_if_missing(url, path):
+    if not os.path.exists(path):
+        print(f"[INFO] Downloading model: {os.path.basename(path)}")
+        try:
+            r = requests.get(url)
+            r.raise_for_status()
+            with open(path, "wb") as f:
+                f.write(r.content)
+            print(f"[INFO] Successfully downloaded {os.path.basename(path)}")
+        except Exception as e:
+            raise RuntimeError(f"Failed to download {os.path.basename(path)}: {e}")
+
+# === Download models if not already present ===
+cnn_path = os.path.join(MODEL_DIR, "cnn_model.h5")
+svm_path = os.path.join(MODEL_DIR, "svm_model.pkl")
+rf_path  = os.path.join(MODEL_DIR, "rf_model.pkl")
+
+download_if_missing(CNN_MODEL_URL, cnn_path)
+download_if_missing(SVM_MODEL_URL, svm_path)
+download_if_missing(RF_MODEL_URL, rf_path)
+
+# === Load models ===
+cnn_model = load_model(cnn_path)
+svm_model = joblib.load(svm_path)
+rf_model = joblib.load(rf_path)
+
+# === VGG16 for feature extraction ===
 vgg_model = VGG16(weights='imagenet', include_top=False, input_shape=(224, 224, 3))
 feature_model = Model(inputs=vgg_model.input, outputs=vgg_model.output)
 
