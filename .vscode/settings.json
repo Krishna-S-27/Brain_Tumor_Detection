@@ -1,0 +1,15 @@
+{
+  "python.analysis.extraPaths": ["./machine_learning"],
+  "terminal.integrated.env.windows": {
+    "PYTHONPATH": "${workspaceFolder}"
+  },
+  "python.testing.unittestArgs": [
+    "-v",
+    "-s",
+    "./tests",
+    "-p",
+    "*_test.py"
+  ],
+  "python.testing.pytestEnabled": false,
+  "python.testing.unittestEnabled": true
+}

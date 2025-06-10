@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+*.log
+
+# Environments
+.env
+.venv/
+env/
+venv/
+ENV/
+.Python
+# Jupyter / IPython
+.ipynb_checkpoints
+# Uploaded/Temporary files
+backend/uploads/
+frontend/uploads/
+# pytest
+.pytest_cache/
+tests/__pycache__/
+test_tmp/
