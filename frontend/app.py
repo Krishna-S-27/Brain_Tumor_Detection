@@ -1,15 +1,11 @@
 import streamlit as st
 import requests
 
-# Streamlit page configuration
 st.set_page_config(page_title="Brain Tumor Classifier", layout="centered")
 st.title("🧠 Brain Tumor Detection from MRI")
 st.write("Upload an MRI image to detect the type of brain tumor:")
 
-# File uploader
 uploaded_file = st.file_uploader("Choose an MRI image", type=["jpg", "jpeg", "png"])
-
-# Dropdown to select model type
 model_type = st.selectbox("Choose model", ["cnn", "svm", "rf"])
 
 if uploaded_file:
@@ -19,11 +15,11 @@ if uploaded_file:
         st.write("🔄 Sending image to backend for prediction...")
 
         try:
-            # Prepare image for POST request
-            files = {"file": (uploaded_file.name, uploaded_file, uploaded_file.type)}
+            files = {
+                "file": (uploaded_file.name, uploaded_file.read(), uploaded_file.type)
+            }
             params = {"model_name": model_type}
 
-            # ✅ Send both file and model type
             response = requests.post(
                 "https://brain-tumor-detection-9vzr.onrender.com/predict/",
                 files=files,
