@@ -19,7 +19,7 @@ if uploaded_file:
         try:
             # Prepare image for POST request
             files = {"file": (uploaded_file.name, uploaded_file, uploaded_file.type)}
-            response = requests.post("http://localhost:8000/predict", files=files)
+            response = requests.post("https://brain-tumor-detection-9vzr.onrender.com", files=files)
 
             if response.status_code == 200:
                 result = response.json()
