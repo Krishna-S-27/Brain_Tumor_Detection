@@ -34,6 +34,15 @@ def download_if_needed(url, filename):
             f.write(r.content)
     return local_path
 
+
+def download_if_missing(url, dest_path):
+    if not os.path.exists(dest_path):
+        print(f"Downloading {dest_path}...")
+        r = requests.get(url)
+        with open(dest_path, 'wb') as f:
+            f.write(r.content)
+
+
 def load_cnn():
     global cnn_model
     if cnn_model is None:
